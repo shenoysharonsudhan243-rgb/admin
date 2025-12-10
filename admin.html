@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Panel</title>
+</head>
+<body>
+<h2>Admin Login</h2>
+
+<div id="loginBox">
+    <input type="email" id="adminEmail" placeholder="Admin Email"><br><br>
+    <input type="password" id="adminPassword" placeholder="Password"><br><br>
+    <button id="loginBtn">Login</button>
+    <p id="loginStatus" style="color:red;"></p>
+</div>
+
+<hr>
+
+<h2>Enquiries</h2>
+<div id="enquiryList"></div>
+
+<button id="logoutBtn" style="display:none;">Logout</button>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+    import { getFirestore, collection, query, orderBy, onSnapshot, doc, updateDoc } 
+        from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+    import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } 
+        from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+
+    // --- Firebase Config ---
+    const firebaseConfig = {
+      apiKey: "AIzaSyD6bKM4SlUn1bUWnlua4Xbs07bj65J3Vns",
+      authDomain: "webform-92ba1.firebaseapp.com",
+      projectId: "webform-92ba1",
+      storageBucket: "webform-92ba1.firebasestorage.app",
+      messagingSenderId: "997411635786",
+      appId: "1:997411635786:web:d6c12ca2992221cedd1cb3"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+
+    const loginBox = document.getElementById("loginBox");
+    const enquiryList = document.getElementById("enquiryList");
+    const loginStatus = document.getElementById("loginStatus");
+    const logoutBtn = document.getElementById("logoutBtn");
+
+    // --- AUTH STATE LISTENER ---
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            loginBox.style.display = "none";
+            logoutBtn.style.display = "block";
+            loadEnquiries();
+        } else {
+            loginBox.style.display = "block";
+            logoutBtn.style.display = "none";
+            enquiryList.innerHTML = "";
+        }
+    });
+
+    // --- LOGIN BUTTON ---
+    document.getElementById("loginBtn").addEventListener("click", () => {
+        const email = document.getElementById("adminEmail").value;
+        const password = document.getElementById("adminPassword").value;
+
+        signInWithEmailAndPassword(auth, email, password)
+            .then(() => loginStatus.innerText = "")
+            .catch((err) => loginStatus.innerText = err.message);
+    });
+
+    // --- LOGOUT BUTTON ---
+    logoutBtn.addEventListener("click", () => {
+        signOut(auth);
+    });
+
+    // --- LOAD ENQUIRIES ---
+    function loadEnquiries() {
+        const q = query(collection(db, "enquiries"), orderBy("createdAt", "desc"));
+
+        onSnapshot(q, (snapshot) => {
+            enquiryList.innerHTML = "";
+
+            snapshot.forEach((docSnap) => {
+                const data = docSnap.data();
+
+                enquiryList.innerHTML += `
+                    <div style="border:1px solid #ccc; padding:10px; margin-bottom:10px;">
+                        <p><strong>Name:</strong> ${data.name}</p>
+                        <p><strong>Email:</strong> ${data.email}</p>
+                        <p><strong>Message:</strong> ${data.message}</p>
+                        <p><strong>Status:</strong> ${data.status}</p>
+                        <button onclick="markContacted('${docSnap.id}')">Mark Contacted</button>
+                    </div>
+                `;
+            });
+        });
+    }
+
+    // --- MARK CONTACTED ---
+    window.markContacted = async function(id) {
+        await updateDoc(doc(db, "enquiries", id), {
+            status: "contacted"
+        });
+        alert("Marked as Contacted");
+    }
+</script>
+</body>
+</html>
